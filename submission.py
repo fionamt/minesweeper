@@ -3,8 +3,8 @@ import collections, util, copy, minesweeper, minesweeperAgent
 def main():
     n = 2
     mines = 3
-    board = minesweeper.Board(n,[(0,1),(1,0),(1,1)])
+    board = minesweeper.Board(5,[(2,2)])
     board.printBoard()
     mineAI = minesweeperAgent.minesweeperAgent()
-    mineAI.solve(n, mines, board)
+    mineAI.solve(5, 1, board)
 main()
