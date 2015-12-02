@@ -39,9 +39,9 @@ class Board:
 			for yincrement in [-1,0,1]:
 				ytotest = curry + yincrement
 				#print 'testing: '+ str(xtotest) + ', '+str(ytotest)+ ', '+str(bombcount)
-				if not self._isOnBoard([xtotest,ytotest]):
+				if not self._isOnBoard((xtotest,ytotest)):
 					continue
-				if self._bombLocation([xtotest,ytotest]) == 'x':
+				if self._bombLocation((xtotest,ytotest)) == 'x':
 					bombcount += 1
 		return bombcount
 
@@ -50,7 +50,7 @@ class Board:
 		while x < self._size:
 			y = 0
 			while y < self._size:
-				print self.whatsAt([x,y]),
+				print self.whatsAt((x,y)),
 				y += 1
 			x += 1
 			print
