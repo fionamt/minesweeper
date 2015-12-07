@@ -6,7 +6,6 @@ class Board:
         def __init__(self, size = 1, bomblocations = []):
 		self._size = size
 		self._bomblocations = bomblocations
-
 	def size(self):
 		return self._size
 

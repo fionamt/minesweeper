@@ -1,6 +1,7 @@
 __author__ = 'Alex'
 
-import collections, util, copy, minesweeper, random, sys
+import collections, util, copy, minesweeper, random, sys, bactracking
+from constraint import *
 class minesweeperAgent:
     def __init__(self):
         self.minesRemaining = 0
@@ -18,7 +19,7 @@ class minesweeperAgent:
             if node[0] < size and node[1] <size and node[0] >= 0 and node[1] >=0:
                 return True
             return False
-        def getUnprobedNeighbors(self, node):
+        def getUnprobedNeighbors(node):
             unprobedNeighbors = []
             numMineNeighbors = 0
             for i in [-1,0,1]:
@@ -28,63 +29,35 @@ class minesweeperAgent:
                     elif inBounds((node[0]+i,node[1] + j)) and (node[0]+i,node[1] + j) != node and self.board.whatsAt((node[0]+i,node[1] + j)) != None and (node[0]+i,node[1]+j) in self.unprobed:
                         unprobedNeighbors.append((node[0]+i,node[1]+j))
             return unprobedNeighbors, numMineNeighbors
-        def get_sum_variable(csp, name, variables, maxSum):
-            domain = []
-            for i in range(0, maxSum+1):
-                for j in range(i, maxSum+1):
-                    domain.append((i, j))
-            result = ('sum', name, 'aggregated')
-            finalDomain = [i for i in range(0, maxSum+1)]
-            csp.add_variable(result, finalDomain)
-            if len(variables) == 0:
-                csp.add_unary_factor(result, lambda val: not val)
-                return result
-            for i in range(0, len(variables)-1):
-                var1 = variables[i]
-                if i == 0:
-                    auxVar = ('sum', name, var1)
-                    csp.add_variable(auxVar, domain)
-                    csp.add_unary_factor(auxVar, lambda x : x[0] == 0)
-                var2 = variables[i+1]
-                auxVar1 = ('sum', name, var1)
-                auxVar2 = ('sum', name, var2)
-                csp.add_variable(auxVar2, domain)
-                csp.add_binary_factor(auxVar1, var1, lambda x, y: x[1] == x[0] + y)
-                csp.add_binary_factor(auxVar1, auxVar2, lambda x, y: x[1] == y[0])
-            beforeFinal = ('sum', name, variables[len(variables)-1])
-            csp.add_binary_factor(beforeFinal, variables[len(variables)-1], lambda x, y: x[1] == x[0] + y)
-            csp.add_binary_factor(result, beforeFinal, lambda x, y : x == y[1])
-            return result
 
         def combineConstraints(newConstraint):
                 hasChanged = False
                 for i in range(len(constraints)):
-                    constraintSet = set(constraints[i][0])
-                    newConstraintSet = set(newConstraint[0])
-                    if len(constraintSet) > 0 and len(newConstraintSet) > 0:
-                        if constraintSet.issubset(newConstraintSet) and constraintSet != newConstraintSet :
-                            combineConstraints(([node for node in newConstraintSet-constraintSet], newConstraint[1]-constraints[i][1]))
-                            hasChanged = True
-                        elif newConstraintSet.issubset(constraintSet) and constraintSet != newConstraintSet:
-                            constraintValue = constraints[i][1]
-                            constraints.remove(constraints[i])
-                            combineConstraints(([node for node in constraintSet-newConstraintSet], constraintValue-newConstraint[1]))
+                    if i < len(constraints):
+                        constraintSet = set(constraints[i][0])
+                        newConstraintSet = set(newConstraint[0])
+                        if len(constraintSet) > 0 and len(newConstraintSet) > 0:
+                            if constraintSet.issubset(newConstraintSet) and constraintSet != newConstraintSet :
+                                combineConstraints(([node for node in newConstraintSet-constraintSet], newConstraint[1]-constraints[i][1]))
+                                hasChanged = True
+                            elif newConstraintSet.issubset(constraintSet) and constraintSet != newConstraintSet:
+                                constraintValue = constraints[i][1]
+                                if constraintValue-newConstraint[1] < 0:
+                                    print newConstraint
+                                    print constraints[i]
+                                constraints.remove(constraints[i])
+                                combineConstraints(([node for node in constraintSet-newConstraintSet], constraintValue-newConstraint[1]))
 
                 if (hasChanged != True or len(constraints) ==0) and newConstraint not in constraints:
                     constraints.append(newConstraint)
-                    for variable in newConstraint[0]:
-                        mostConstrainedDict[variable] += 1
 
 
-        def checkForTrivialConstraints(self):
+        def checkForTrivialConstraints():
             for constraint in constraints:
                     if len(constraint[0]) == constraint[1]:
                         for mine in constraint[0]:
                             if mine not in self.mineLocs:
-                                self.mineLocs.append(mine)
-                                self.minesRemaining -=1
-                            if mine in self.unprobed:
-                                self.unprobed.remove(mine)
+                                addMine(mine)
                         if self.minesRemaining <= 0:
                             self.solved = True
 
@@ -93,15 +66,98 @@ class minesweeperAgent:
                             constraints.append(([node], 0))
                             toProbe.append(node)
                         constraints.remove(constraint)
-        def checkGameOutcome(self):
+        def checkGameOutcome():
             if self.solved == True:
                 print 'Solution:'
                 solution = minesweeper.Board(self.size, [self.mineLocs[i] for i in range(len(self.mineLocs))])
                 solution.printBoard()
+                print self.mineLocs
+                if set(solution._bomblocations) == set(board._bomblocations):
+                    return True
+                return False
+
             if self.lose== True:
                 print 'You lose'
-        def getMCV():
-            return max(mostConstrainedDict.iteritems(), key=lambda x: x[1])
+            return False
+        def getSortedMCVVars():
+            return sorted(mostConstrainedDict, key=mostConstrainedDict.get, reverse=True)
+        def getDependentVariablesandConstraints(mcv):
+            dependentVariables = []
+            dependentConstraints = []
+            for constraint in constraints:
+                if mcv in constraint[0]:
+                    dependentConstraints.append(constraint)
+                    for variable in constraint[0]:
+                        if variable != mcv and variable not in dependentVariables:
+                          dependentVariables.append(variable)
+            return dependentVariables, dependentConstraints
+
+        def updateMCVDict():
+            mostConstrainedDict.clear()
+            for constraint in constraints:
+                for variable in constraint[0]:
+                    mostConstrainedDict[variable] += 1
+
+        def satisfiesConstraints(consts, testAssignment):
+            for constraint in consts:
+                varSum = 0
+                varsAssigned = 0
+                for var in constraint[0]:
+                    if var in testAssignment:
+                        varSum += testAssignment[var]
+                        varsAssigned += 1
+                if varSum > constraint[1] or (varsAssigned == len(constraint[0]) and varSum != constraint[1]):
+                    return False
+            return True
+
+        def findSolutions(vars, consts, varIndex, currAssignment, assignments):
+            if len(vars) == len(currAssignment):
+                mineCount = 0
+                for var in currAssignment:
+                    mineCount += currAssignment[var]
+                if satisfiesConstraints(consts, currAssignment) and mineCount <= self.minesRemaining:
+                    assignments.append(copy.deepcopy(currAssignment))
+                return
+            for i in [0,1]:
+                currAssignment[vars[varIndex]] = i
+                if satisfiesConstraints(consts,currAssignment):
+                    findSolutions(vars, consts, varIndex + 1, copy.deepcopy(currAssignment), assignments)
+            return
+        def addMine(mine):
+            self.mineLocs.append(mine)
+            self.minesRemaining -= 1
+            if mine in self.unprobed:
+                self.unprobed.remove(mine)
+
+        def computeMCVSolution(toProbe, MCV):
+
+            depVars, depConst = getDependentVariablesandConstraints(MCV)
+            depVars.append(MCV)
+            if len(depVars) > 1:
+                assignments = []
+                currAssignment = {}
+                findSolutions(depVars,depConst, 0,currAssignment, assignments)
+                varValues = collections.Counter()
+                for assignment in assignments:
+                    for var in assignment.keys():
+                        varValues[var]+= assignment[var]
+                mineProbs = {}
+                for varValue in varValues.keys():
+                    prob = float(varValues[varValue])/len(assignments)
+
+                    if prob == 1:
+                        addMine(varValue)
+                    if self.minesRemaining == 0:
+                        self.solved = True
+                        break
+                    if prob == 0:
+                        toProbe.append(varValue)
+                        combineConstraints(([varValue], 0))
+                        checkForTrivialConstraints()
+
+                    else:
+                        mineProbs[varValue] = prob
+
 
         random.seed()
         for i in range(size):
@@ -116,7 +172,9 @@ class minesweeperAgent:
         toProbe.append(startNode)
         mostConstrainedDict = collections.Counter()
         while self.solved == False and self.lose == False:
+
             currentNode = None
+            nodeValue =-1
             if len(self.unprobed) == 0:
                 self.solved = True
                 break
@@ -129,37 +187,43 @@ class minesweeperAgent:
                 currentNode = toProbe[0]
                 nodeValue = board.whatsAt(currentNode)
                 toProbe.remove(currentNode)
-            #elif len(mostConstrainedDict) > 0:
-            #    currentNode = getMCV()[0]
-
             else:
-                currentNode= random.choice(self.unprobed)
-                nodeValue = board.whatsAt(currentNode)
-                print nodeValue
+                updateMCVDict()
+                MCVList = getSortedMCVVars()
+                if len(MCVList) > 0:
+                    for mcv in MCVList:
+                        if mostConstrainedDict[mcv] > 1:
+                            computeMCVSolution(toProbe, mcv)
+                if len(toProbe) > 0:
+                    currentNode = toProbe[0]
+                    nodeValue = board.whatsAt(currentNode)
+                    toProbe.remove(currentNode)
+                if currentNode is None:
+                    currentNode= random.choice(self.unprobed)
+                    nodeValue = board.whatsAt(currentNode)
             if nodeValue == 'x':
                 self.lose = True
                 break
-            neighbors, numMineNeighbors = getUnprobedNeighbors(self, currentNode)
+            neighbors, numMineNeighbors = getUnprobedNeighbors(currentNode)
             nodeValue-=numMineNeighbors
             if nodeValue == 0:
                 for neighbor in neighbors:
                     if neighbor not in toProbe:
                         toProbe.append(neighbor)
                     combineConstraints(([neighbor],0))
+                    checkForTrivialConstraints()
             elif nodeValue == len(neighbors):
                 for neighbor in neighbors:
-                    self.mineLocs.append(neighbor)
-                    self.minesRemaining -= 1
-                    self.unprobed.remove(neighbor)
+                    addMine(neighbor)
                 if self.minesRemaining <= 0:
                     self.solved = True
                     break
             else:
                 combineConstraints(([neighbor for neighbor in neighbors],nodeValue))
-                checkForTrivialConstraints(self)
+                checkForTrivialConstraints()
                 if self.solved == True:
                     break
             if currentNode in self.unprobed:
                 self.unprobed.remove(currentNode)
-        checkGameOutcome(self)
+        return checkGameOutcome()
 
