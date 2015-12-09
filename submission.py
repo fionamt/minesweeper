@@ -2,7 +2,7 @@ import collections, util, copy, minesweeper, minesweeperAgent, random
 
 def main():
     random.seed()
-    numGames = 100
+    numGames = 5
     n = 16
     mines = 40
     gamesWon = 0
@@ -14,12 +14,12 @@ def main():
     for game in range(numGames):
         mineLocs = random.sample(boardLocs, mines)
         board = minesweeper.Board(n,mineLocs)
-        board.printBoard()
         mineAI = minesweeperAgent.minesweeperAgent()
         result = mineAI.solve(n, mines, board)
-        print result
         if result:
             gamesWon += 1
+        if game % 100 == 0:
+            print game
     winRate =float(gamesWon)/numGames
     print 'You won %d games out of %d with a win rate of %.4s'%(gamesWon,numGames,winRate)
 main()
