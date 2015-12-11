@@ -21,11 +21,12 @@ class oracleAgent:
         self.tank_board = None
         self.TOT_MINES = 99
         self.borderOptimization = None
+        self.solved = False
     #
     # def checkConsistency():
     #     for i in range(size):
     #         for j in range(size):
-    #             freeSquares = countFreeSquaresAround(i, j)
+    #             freeSquares = SquaresAround(i, j)
     #             numFlags = ound(i , j)
     #             if self.onScreen[(i,j)] == 0 and freeSquares > 0:
     #                 return False
@@ -34,19 +35,62 @@ class oracleAgent:
     #     return True
 
     def solve(self, size, mines, board):
-        def stillAlive(status):
-            if status == 'x':
+        def printBoard():
+            "Current status: "
+            for i in range(self.size):
+                for j in range(self.size):
+                    loc = self.onScreen[(i, j)]
+                    if self.onScreen[(i, j)] == None:
+                        loc = 'u'
+                    print loc,
+                print
+            print
+
+        def checkGameOutcome():
+            if self.solved == True:
+                # print 'You win!'
+                solution = []
+                for flag in self.flags:
+                    if self.flags[flag]:
+                        solution.append(flag)
+                if set(solution) == set(board._bomblocations):
+                    return True
                 return False
-            else:
+
+            #if self.lose== True:
+                #print 'You lose'
+            return False
+
+        def stillAlive():
+            for i in range(self.size):
+                for j in range(self.size):
+                    if self.onScreen[(i, j)] == -10:
+                        return False
+            return True
+
+        def solved():
+            flags = 0
+            for i in range(self.size):
+                for j in range(self.size):
+                    if self.onScreen[(i, j)] == None:
+                        return False
+                    if self.flags[(i, j)]:
+                        flags += 1
+            if flags == self.TOT_MINES:
                 return True
+            return False
 
         def flagOn(i, j):
             self.flags[(i, j)] = True
+            self.onScreen[(i, j)] = -1
             self.minesRemaining -= 1
             return self.flags[(i, j)]
 
         def clickOn(i, j):
-            self.onScreen[(i,j)] = self.board.whatsAt((i, j))
+            self.onScreen[(i,j)] = self.board.whatsAt((i, j)) if self.board.whatsAt((i, j)) != 'x' else -10
+            if self.onScreen[(i,j)] == -10:
+                print "clicked: ", (i, j), self.onScreen[(i,j)]
+                self.lose = True
             return self.onScreen[(i,j)]
 
         def firstSquare():
@@ -61,23 +105,32 @@ class oracleAgent:
 
         def countFreeSquaresAround(i, j):
             freeSquares = 0
-            if self.onScreen[(i-1, j)] == -1:
+            freeSquareOptions = []
+            if self.onScreen[(i-1, j)] == None and not self.flags[(i-1, j)]:
+                freeSquareOptions.append((i-1, j))
                 freeSquares += 1
-            if self.onScreen[(i+1, j)] == -1:
+            if self.onScreen[(i+1, j)] == None and not self.flags[(i+1, j)]:
+                freeSquareOptions.append((i+1, j))
                 freeSquares += 1
-            if self.onScreen[(i, j-1)] == -1:
+            if self.onScreen[(i, j-1)] == None and not self.flags[(i, j-1)]:
+                freeSquareOptions.append((i, j-1))
                 freeSquares += 1
-            if self.onScreen[(i, j+1)] == -1:
+            if self.onScreen[(i, j+1)] == None and not self.flags[(i, j+1)]:
+                freeSquareOptions.append((i, j+1))
                 freeSquares += 1
-            if self.onScreen[(i-1, j-1)] == -1:
+            if self.onScreen[(i-1, j-1)] == None and not self.flags[(i-1, j-1)]:
+                freeSquareOptions.append((i-1, j-1))
                 freeSquares += 1
-            if self.onScreen[(i-1, j+1)] == -1:
+            if self.onScreen[(i-1, j+1)] == None and not self.flags[(i-1, j+1)]:
+                freeSquareOptions.append((i-1, j+1))
                 freeSquares += 1
-            if self.onScreen[(i+1, j-1)] == -1:
+            if self.onScreen[(i+1, j-1)] == None and not self.flags[(i+1, j-1)]:
+                freeSquareOptions.append((i+1, j-1))
                 freeSquares += 1
-            if self.onScreen[(i+1, j+1)] == -1:
+            if self.onScreen[(i+1, j+1)] == None and not self.flags[(i+1, j+1)]:
+                freeSquareOptions.append((i+1, j+1))
                 freeSquares += 1
-            return freeSquares
+            return freeSquares, freeSquareOptions
 
         def countFlagsAround(board, i, j):
             flags = 0
@@ -139,7 +192,7 @@ class oracleAgent:
                 for j in range(self.size):
                     if self.knownMine[(i,j)]:
                         flagCount += 1
-                    num = self.tank_board[(i, j)] if self.tank_board[(i, j)] != None else -1
+                    num = self.tank_board[(i, j)] if self.tank_board[(i, j)] != None else -10
                     if num < 0:
                         continue
                     surround = 0
@@ -157,21 +210,19 @@ class oracleAgent:
                     if surround - numFree < num:
                         return
 
-                if flagCount > self.TOT_MINES:
+            if flagCount > self.TOT_MINES:
+                return
+            if k == len(borderTiles):
+                if not self.borderOptimization and flagCount < self.TOT_MINES:
+                # if flagCount < self.TOT_MINES:
                     return
-                if k == len(borderTiles):
-                    if not self.borderOptimization and flagCount < self.TOT_MINES:
-                    # if flagCount < self.TOT_MINES:
-                        return
-                    solution = []
-                    print borderTiles, len(borderTiles)
-                    for i in range(len(borderTiles)):
-                        s = borderTiles[i]
-                        si, sj = s
-                        solution.append(self.knownMine[(si, sj)])
-                        print solution, i
-                    self.tank_solutions.append(solution)
-                    return
+                solution = []
+                for i in range(len(borderTiles)):
+                    s = borderTiles[i]
+                    si, sj = s
+                    solution.append(self.knownMine[(si, sj)])
+                self.tank_solutions.append(solution)
+                return
             q = borderTiles[k]
             qi, qj = q
             self.knownMine[(qi, qj)] = True
@@ -189,34 +240,43 @@ class oracleAgent:
                 queue = []
                 finishedRegion = []
                 for firstT in borderTiles:
-                    if not covered.contains(firstT):
+                    if firstT not in covered:
                         queue.append(firstT)
                         break
                 if len(queue) == 0:
                     break
-
                 while not len(queue) == 0:
-                    curTile = queue.poll()
+                    curTile = queue.pop(0)
                     ci, cj = curTile
                     finishedRegion.append(curTile)
                     covered.append(curTile)
 
+                    # determine bordering tiles
                     for tile in borderTiles:
                         ti, tj = tile
+                        isConnected = False
+                        if tile in finishedRegion:
+                            continue
                         if abs(ci - ti) > 2 or abs(cj - tj) > 2:
                             isConnected = False
                         else:
-                            for i in len(self.size):
-                                for j in len(self.size):
-                                    if self.onScreen[(i,j)] > 0:
+                            for i in range(self.size):
+                                isTrue = False
+                                for j in range(self.size):
+                                    if self.onScreen[(i,j)] > 0 and self.onScreen[(i,j)] != None:
                                         if abs(ci - i) <= 1 and abs(cj - j) <= 1 and abs(ti - i) <= 1 and abs(tj - j) <= 1:
                                             isConnected = True
+                                            isTrue = True
                                             break
+                                if isTrue:
+                                    break
 
                         if not isConnected:
                             continue
-                        if not queue.contains(tile):
-                            queue.add(tile)
+                        elif tile not in queue:
+                            queue.append(tile)
+                allRegions.append(finishedRegion)
+                # print allRegions
             return allRegions
 
 
@@ -224,30 +284,37 @@ class oracleAgent:
             borderTiles = []
             allEmptyTiles = []
             self.borderOptimization = False
+            allFlags = 0
             for i in range(self.size):
                 for j in range(self.size):
                     if self.onScreen[(i,j)] == None and not self.flags[(i, j)]:
                         allEmptyTiles.append((i,j))
+                    if self.flags[(i, j)]:
+                        allFlags += 1
+            if allFlags > self.TOT_MINES:
+                return
             for i in range(self.size):
                 for j in range(self.size):
                     if isBoundary(i, j) and not self.flags[(i, j)]:
                         borderTiles.append((i,j))
+            # num squares in knowable range
             numOutSquares = len(allEmptyTiles) - len(borderTiles)
             if numOutSquares > self.BF_LIMIT:
                 self.borderOptimization = True
             else:
                 borderTiles = allEmptyTiles
-
             if len(borderTiles) == 0:
-                print "borderTiles error"
+                # print "borderTiles error: ", borderTiles
                 return
 
-            segregated = []
+            segregated = None
             if not self.borderOptimization:
                 segregated = []
                 segregated.append(borderTiles)
             else:
+                # print "tank segregate"
                 segregated = tankSegregate(borderTiles)
+                # print "finished"
 
             totalMultCases = 1
             success = False
@@ -256,34 +323,46 @@ class oracleAgent:
             prob_best_s = -1
             for s in range(len(segregated)):
                 self.tank_solutions = []
-                self.tank_board = self.onScreen.copy()
-                self.knownMine = self.flags.copy()
+                self.tank_board = collections.Counter()
+                self.knownMine = collections.Counter()
+                for o in self.onScreen:
+                    self.tank_board[o] = self.onScreen[o]
+                for f in self.flags:
+                    self.knownMine[f] = self.flags[f]
                 self.knownEmpty = collections.Counter()
                 for i in range(self.size):
                     for j in range(self.size):
-                        if self.tank_board[(i, j)] >= 0:
+                        if self.tank_board[(i, j)] != None:
                             self.knownEmpty[(i, j)] = True
                         else:
                             self.knownEmpty[(i, j)] = False
                 tankRecurse(segregated[s], 0)
+                solution = False
                 if len(self.tank_solutions) == 0:
-                    print "tank_solutions error"
-                    return
-                for i in range(len(segregated[s])):
-                    allMine = True
-                    allEmpty = True
-                    for sln in self.tank_solutions:
-                        if not sln[i]:
-                            allMine = False
-                        if sln[i]:
-                            allEmpty = False
-                    q = segregated[s][i]
-                    qi, qj = q
-                    if allMine:
-                        flagOn(qi, qj)
-                    if allEmpty:
-                        success = True
-                        clickOn(qi, qj)
+                    if solved():
+                        # print "SOLVED"
+                        self.tank_solutions.append(self.flags)
+                        solution = True
+                    else:
+                        # print "tank_solutions error"
+                        return
+                if not solution:
+                    for i in range(len(segregated[s])):
+                        allMine = True
+                        allEmpty = True
+                        for sln in self.tank_solutions:
+                            if not sln[i]:
+                                allMine = False
+                            if sln[i]:
+                                allEmpty = False
+                        q = segregated[s][i]
+                        qi, qj = q
+                        if allMine:
+                            # print "all Mine"
+                            flagOn(qi, qj)
+                        if allEmpty:
+                            success = True
+                            clickOn(qi, qj)
                 totalMultCases *= len(self.tank_solutions)
 
                 if success:
@@ -313,44 +392,48 @@ class oracleAgent:
                 return
 
             if success:
-                print "TANK Solver successfully invoked at step %d (%d cases)%s\n" % (self.TOT_MINES - self.minesRemaining, totalMultCases, self.borderOptimization)
+                print "TANK Solver successfully invoked at step %d (%d cases) %s\n" % (self.TOT_MINES - self.minesRemaining, totalMultCases, self.borderOptimization)
                 return
 
-            print "TANK Solver guessing with probability %1.2f at step %d (%d cases)%s\n" % (prob_best, self.TOT_MINES - self.minesRemaining, totalMultCases, self.borderOptimization)
+            print "TANK Solver guessing with probability %1.2f at step %d (%d cases) %s\n" % (prob_best, self.TOT_MINES - self.minesRemaining, totalMultCases, self.borderOptimization)
             q = segregated[prob_best_s][prob_besttile]
             qi, qj = q
             clickOn(qi, qj)
 
         def attemptFlagMine():
+            # print "attempt Flag Mine"
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.onScreen[(i,j)] >= 1:
+                    if self.onScreen[(i,j)] >= 1 and self.onScreen[(i, j)] != None:
                         curNum = self.onScreen[(i,j)]
                         if curNum == countFreeSquaresAround(i, j):
                             for ii in range(size):
                                 for jj in range(size):
                                     if abs(ii - i) <= 1 and abs(jj - j) <= 1:
-                                        if self.onScreen[(ii, jj)] == None and not flags[(ii, jj)]:
+                                        if self.onScreen[(ii, jj)] == None and not self.flags[(ii, jj)]:
                                             flagOn(ii, jj)
 
         def attemptMove():
             success = False
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.onScreen[(i, j)] >= 1:
+                    # print
+                    # print "attempt Move: ", (i, j)
+                    # printBoard()
+                    # self.board.printBoard()
+                    if self.onScreen[(i, j)] >= 0:
                         curNum = self.onScreen[(i, j)]
-                        mines = countFlagsAround(self.onScreen, i, j)
-                        freeSquares = countFreeSquaresAround(i, j)
-                        if curNum == mines and freeSquares > mines:
+                        mines = countFlagsAround(self.flags, i, j)
+                        freeSquares, freeSquareOptions = countFreeSquaresAround(i, j)
+                        # print "squares ", (i, j), freeSquares, curNum, mines, curNum == mines and freeSquares > 0, freeSquareOptions
+                        if curNum == mines and freeSquares > 0:
                             success = True
-                            if freeSquares - mines > 1:
-                                self.onScreen[(i, j)] = 0
-                                continue
-                            for ii in range(size):
-                                for jj in range(size):
-                                    if abs(ii - i) <= 1 and abs(jj - j) <= 1:
-                                        if self.onScreen[(ii, jj)] == None and not flags[(ii, jj)]:
-                                            clickOn(ii, jj)
+                            # if freeSquares - mines > 1:
+                            #     self.onScreen[(i, j)] = 0
+                            #     continue
+                            for square in freeSquareOptions:
+                                si, sj = square
+                                clickOn(si, sj)
             if success:
                 return
             tankSolver()
@@ -365,9 +448,18 @@ class oracleAgent:
                 self.flags[(i, j)] = False
                 self.onScreen[(i, j)] = None
         currentNode = firstSquare()
-        for c in range(1000000):
-            if not stillAlive(currentNode):
+        for c in range(1000):
+            # print "flags ", self.flags
+            # print "board ", self.onScreen
+            if solved():
+                self.solved = True
+                break
+            if not stillAlive():
                 self.lose = True
                 break
             attemptFlagMine()
+            if solved():
+                self.solved = True
+                break
             attemptMove()
+        return checkGameOutcome()

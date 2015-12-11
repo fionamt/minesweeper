@@ -2,9 +2,9 @@ import collections, util, copy, minesweeper, oracleAgent, random
 
 def main():
     random.seed()
-    numGames = 100
-    n = 3
-    mines = 2
+    numGames = 10
+    n = 5
+    mines = 5
     gamesWon = 0
     boardLocs = []
     for i in range(n):
