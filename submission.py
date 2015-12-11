@@ -1,21 +1,23 @@
-import collections, util, copy, minesweeper, minesweeperAgent, random
+import minesweeper, minesweeperAgent, random
 
 def main():
     random.seed()
-    numGames = 5
-    n = 16
-    mines = 40
+    numGames = 10
+    boardSize = 10
+    mines = 10
     gamesWon = 0
     boardLocs = []
-    for i in range(n):
-        for j in range(n):
+    for i in range(boardSize):
+        for j in range(boardSize):
             if (i,j) != (0,0):
                 boardLocs.append((i,j))
     for game in range(numGames):
         mineLocs = random.sample(boardLocs, mines)
-        board = minesweeper.Board(n,mineLocs)
+        board = minesweeper.Board(boardSize,mineLocs)
+        print 'The solution should look like this:\n'
+        board.printBoard()
         mineAI = minesweeperAgent.minesweeperAgent()
-        result = mineAI.solve(n, mines, board)
+        result = mineAI.solve(boardSize, mines, board)
         if result:
             gamesWon += 1
         if game % 100 == 0:
