@@ -2,7 +2,7 @@ import collections, util, copy, minesweeper, oracleAgent, random
 
 def main():
     random.seed()
-    numGames = 10
+    numGames = 1
     n = 5
     mines = 5
     gamesWon = 0

@@ -415,12 +415,12 @@ class oracleAgent:
 
         def attemptMove():
             success = False
+            # print
+            # print "attempt Move: "
+            # printBoard()
+            # self.board.printBoard()
             for i in range(self.size):
                 for j in range(self.size):
-                    # print
-                    # print "attempt Move: ", (i, j)
-                    # printBoard()
-                    # self.board.printBoard()
                     if self.onScreen[(i, j)] >= 0:
                         curNum = self.onScreen[(i, j)]
                         mines = countFlagsAround(self.flags, i, j)
@@ -436,7 +436,8 @@ class oracleAgent:
                                 clickOn(si, sj)
             if success:
                 return
-            tankSolver()
+            else:
+                tankSolver()
 
 
         self.board = board
@@ -448,14 +449,14 @@ class oracleAgent:
                 self.flags[(i, j)] = False
                 self.onScreen[(i, j)] = None
         currentNode = firstSquare()
-        for c in range(1000):
+        for c in range(100000):
             # print "flags ", self.flags
             # print "board ", self.onScreen
-            if solved():
-                self.solved = True
-                break
             if not stillAlive():
                 self.lose = True
+                break
+            if solved():
+                self.solved = True
                 break
             attemptFlagMine()
             if solved():
