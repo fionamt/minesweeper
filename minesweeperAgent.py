@@ -32,37 +32,37 @@ class minesweeperAgent:
             return unprobedNeighbors, numMineNeighbors
 
         def combineConstraints(newConstraint):
-                hasChanged = False
-                for i in range(len(constraints)):
-                    if i < len(constraints):
-                        constraintSet = set(constraints[i][0])
-                        newConstraintSet = set(newConstraint[0])
-                        if len(constraintSet) > 0 and len(newConstraintSet) > 0:
-                            if constraintSet.issubset(newConstraintSet) and constraintSet != newConstraintSet:
-                                combineConstraints(([node for node in newConstraintSet-constraintSet], newConstraint[1]-constraints[i][1]))
-                                hasChanged = True
-                            elif newConstraintSet.issubset(constraintSet) and constraintSet != newConstraintSet:
-                                constraintValue = constraints[i][1]
-                                constraints.remove(constraints[i])
-                                combineConstraints(([node for node in constraintSet-newConstraintSet], constraintValue-newConstraint[1]))
+            hasChanged = False
+            for i in range(len(constraints)):
+                if i < len(constraints):
+                    constraintSet = set(constraints[i][0])
+                    newConstraintSet = set(newConstraint[0])
+                    if len(constraintSet) > 0 and len(newConstraintSet) > 0:
+                        if constraintSet.issubset(newConstraintSet) and constraintSet != newConstraintSet:
+                            combineConstraints(([node for node in newConstraintSet-constraintSet], newConstraint[1]-constraints[i][1]))
+                            hasChanged = True
+                        elif newConstraintSet.issubset(constraintSet) and constraintSet != newConstraintSet:
+                            constraintValue = constraints[i][1]
+                            constraints.remove(constraints[i])
+                            combineConstraints(([node for node in constraintSet-newConstraintSet], constraintValue-newConstraint[1]))
 
-                if (hasChanged != True or len(constraints) ==0) and newConstraint not in constraints:
-                    constraints.append(newConstraint)
+            if (hasChanged != True or len(constraints) ==0) and newConstraint not in constraints:
+                constraints.append(newConstraint)
 
         def checkForTrivialConstraints():
             for constraint in constraints:
-                    if len(constraint[0]) == constraint[1]:
-                        for mine in constraint[0]:
-                            if mine not in self.mineLocs:
-                                addMine(mine)
-                        if self.minesRemaining <= 0:
-                            self.solved = True
+                if len(constraint[0]) == constraint[1]:
+                    for mine in constraint[0]:
+                        if mine not in self.mineLocs:
+                            addMine(mine)
+                    if self.minesRemaining <= 0:
+                        self.solved = True
 
-                    if constraint[1] == 0 and len(constraint[0]) > 1:
-                        for node in constraint[0]:
-                            constraints.append(([node], 0))
-                            toProbe.append(node)
-                        constraints.remove(constraint)
+                if constraint[1] == 0 and len(constraint[0]) > 1:
+                    for node in constraint[0]:
+                        constraints.append(([node], 0))
+                        toProbe.append(node)
+                    constraints.remove(constraint)
 
         def checkGameOutcome():
             if self.solved == True:
@@ -162,14 +162,12 @@ class minesweeperAgent:
                     else:
                         mineProbs[varValue] = prob
                 else:
-
                     if changed is False and len(mineProbs) > 0:
                         lowestProbMineVar = min(mineProbs, key = mineProbs.get)
 
                         if mineProbs[lowestProbMineVar] < self.minesRemaining/float(len(self.unprobed)):
                             toProbe.append(lowestProbMineVar)
-
-
+                        
         random.seed()
         for i in range(size):
             for j in range(size):
@@ -252,4 +250,3 @@ class minesweeperAgent:
             if currentNode in self.unprobed:
                 self.unprobed.remove(currentNode)
         return checkGameOutcome()
-

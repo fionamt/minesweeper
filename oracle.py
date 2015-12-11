@@ -2,9 +2,9 @@ import collections, util, copy, minesweeper, oracleAgent, random
 
 def main():
     random.seed()
-    numGames = 1
-    n = 5
-    mines = 5
+    numGames = 200
+    n = 13
+    mines = 20
     gamesWon = 0
     boardLocs = []
     for i in range(n):
@@ -21,6 +21,7 @@ def main():
             gamesWon += 1
         if game % 100 == 0:
             print game
+        # print "Currently, you won %d games out of %d with a win rate of %.4s\n " %  (gamesWon, game+1, float(gamesWon)/(game+1))
     winRate = float(gamesWon)/numGames
     print 'You won %d games out of %d with a win rate of %.4s'%(gamesWon,numGames,winRate)
 main()

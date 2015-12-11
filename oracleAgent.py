@@ -4,133 +4,117 @@ import collections, util, copy, minesweeper, random, time
 from constraint import *
 class oracleAgent:
     def __init__(self):
+        self.NORMAL_BRUTE_FORCE_CONSTANT = 8
+        self.MAX_BRUTE_FORCE_CONSTANT = 13
+        self.MAX_ATTEMPTS_BEFORE_FAILURE = 10000
+        self.brute_force_limit = self.NORMAL_BRUTE_FORCE_CONSTANT
+        self.totalNumMines = 0
         self.minesRemaining = 0
-        # self.mineLocs = []
-        self.board = None
-        # self.solved = False
+        self.actualBoard = None
         self.lose = False
-        # self.probed = []
-        self.size = 0
-        # self.unprobed = []
-        self.onScreen = collections.Counter()
-        self.flags = collections.Counter()
-        self.knownMine = None
-        self.knownEmpty = None
-        self.tank_solutions = None
-        self.BF_LIMIT = 8
-        self.tank_board = None
-        self.TOT_MINES = 99
-        self.borderOptimization = None
         self.solved = False
-    #
-    # def checkConsistency():
-    #     for i in range(size):
-    #         for j in range(size):
-    #             freeSquares = SquaresAround(i, j)
-    #             numFlags = ound(i , j)
-    #             if self.onScreen[(i,j)] == 0 and freeSquares > 0:
-    #                 return False
-    #             if (self.onScreen[(i,j)] - numFlags) > 0 and freeSquares == 0:
-    #                 return False
-    #     return True
+        self.size = 0
+        self.minesweeperBoard = collections.Counter()
+        self.flagLocations = collections.Counter()
+        self.uncoveredTiles = None
+        self.temporaryMinePlacement = None
+        self.solutionOptions = None
+        self.temporaryBoard = None
+        self.borderOptimization = None
+
+        self.verbose = False
 
     def solve(self, size, mines, board):
         def printBoard():
             "Current status: "
             for i in range(self.size):
                 for j in range(self.size):
-                    loc = self.onScreen[(i, j)]
-                    if self.onScreen[(i, j)] == None:
+                    loc = self.minesweeperBoard[(i, j)]
+                    if self.minesweeperBoard[(i, j)] == None:
                         loc = 'u'
                     print loc,
                 print
             print
 
+        def copyBoard(board):
+            newBoard = collections.Counter()
+            for b in board:
+                newBoard[b] = copy.deepcopy(board[b])
+            return newBoard
+
         def checkGameOutcome():
             if self.solved == True:
-                # print 'You win!'
                 solution = []
-                for flag in self.flags:
-                    if self.flags[flag]:
+                for flag in self.flagLocations:
+                    if self.flagLocations[flag]:
                         solution.append(flag)
                 if set(solution) == set(board._bomblocations):
                     return True
                 return False
-
-            #if self.lose== True:
-                #print 'You lose'
             return False
 
         def stillAlive():
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.onScreen[(i, j)] == -10:
+                    if self.minesweeperBoard[(i, j)] == -1000:
                         return False
             return True
 
-        def solved():
+        def isSolved():
             flags = 0
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.onScreen[(i, j)] == None:
+                    if self.minesweeperBoard[(i, j)] == None:
                         return False
-                    if self.flags[(i, j)]:
+                    if self.flagLocations[(i, j)]:
                         flags += 1
-            if flags == self.TOT_MINES:
+            if flags == self.totalNumMines:
                 return True
             return False
 
-        def flagOn(i, j):
-            self.flags[(i, j)] = True
-            self.onScreen[(i, j)] = -1
+        def flagTile(i, j):
+            self.flagLocations[(i, j)] = True
+            self.minesweeperBoard[(i, j)] = -1
             self.minesRemaining -= 1
-            return self.flags[(i, j)]
+            return self.flagLocations[(i, j)]
 
-        def clickOn(i, j):
-            self.onScreen[(i,j)] = self.board.whatsAt((i, j)) if self.board.whatsAt((i, j)) != 'x' else -10
-            if self.onScreen[(i,j)] == -10:
-                print "clicked: ", (i, j), self.onScreen[(i,j)]
+        def clickTile(i, j):
+            self.minesweeperBoard[(i,j)] = self.actualBoard.whatsAt((i, j)) if self.actualBoard.whatsAt((i, j)) != 'x' else -1000
+            if self.minesweeperBoard[(i,j)] == -1000:
                 self.lose = True
-            return self.onScreen[(i,j)]
+            return self.minesweeperBoard[(i,j)]
 
-        def firstSquare():
-            isUntouched = True
-            for i in range(self.size):
-                for j in range(self.size):
-                    if self.onScreen[(i,j)] != None:
-                        isUntouched = False
-                if not isUntouched:
-                    break
-            return clickOn(size/2-1, size/2-1)
+        def firstTile():
+            return clickTile(0, 0)
 
-        def countFreeSquaresAround(i, j):
-            freeSquares = 0
-            freeSquareOptions = []
-            if self.onScreen[(i-1, j)] == None and not self.flags[(i-1, j)]:
-                freeSquareOptions.append((i-1, j))
-                freeSquares += 1
-            if self.onScreen[(i+1, j)] == None and not self.flags[(i+1, j)]:
-                freeSquareOptions.append((i+1, j))
-                freeSquares += 1
-            if self.onScreen[(i, j-1)] == None and not self.flags[(i, j-1)]:
-                freeSquareOptions.append((i, j-1))
-                freeSquares += 1
-            if self.onScreen[(i, j+1)] == None and not self.flags[(i, j+1)]:
-                freeSquareOptions.append((i, j+1))
-                freeSquares += 1
-            if self.onScreen[(i-1, j-1)] == None and not self.flags[(i-1, j-1)]:
-                freeSquareOptions.append((i-1, j-1))
-                freeSquares += 1
-            if self.onScreen[(i-1, j+1)] == None and not self.flags[(i-1, j+1)]:
-                freeSquareOptions.append((i-1, j+1))
-                freeSquares += 1
-            if self.onScreen[(i+1, j-1)] == None and not self.flags[(i+1, j-1)]:
-                freeSquareOptions.append((i+1, j-1))
-                freeSquares += 1
-            if self.onScreen[(i+1, j+1)] == None and not self.flags[(i+1, j+1)]:
-                freeSquareOptions.append((i+1, j+1))
-                freeSquares += 1
-            return freeSquares, freeSquareOptions
+        def countFreeTilesAround(i, j):
+            freeTiles = 0
+            freeTileOptions = []
+            if self.minesweeperBoard[(i-1, j)] == None and not self.flagLocations[(i-1, j)]:
+                freeTileOptions.append((i-1, j))
+                freeTiles += 1
+            if self.minesweeperBoard[(i+1, j)] == None and not self.flagLocations[(i+1, j)]:
+                freeTileOptions.append((i+1, j))
+                freeTiles += 1
+            if self.minesweeperBoard[(i, j-1)] == None and not self.flagLocations[(i, j-1)]:
+                freeTileOptions.append((i, j-1))
+                freeTiles += 1
+            if self.minesweeperBoard[(i, j+1)] == None and not self.flagLocations[(i, j+1)]:
+                freeTileOptions.append((i, j+1))
+                freeTiles += 1
+            if self.minesweeperBoard[(i-1, j-1)] == None and not self.flagLocations[(i-1, j-1)]:
+                freeTileOptions.append((i-1, j-1))
+                freeTiles += 1
+            if self.minesweeperBoard[(i-1, j+1)] == None and not self.flagLocations[(i-1, j+1)]:
+                freeTileOptions.append((i-1, j+1))
+                freeTiles += 1
+            if self.minesweeperBoard[(i+1, j-1)] == None and not self.flagLocations[(i+1, j-1)]:
+                freeTileOptions.append((i+1, j-1))
+                freeTiles += 1
+            if self.minesweeperBoard[(i+1, j+1)] == None and not self.flagLocations[(i+1, j+1)]:
+                freeTileOptions.append((i+1, j+1))
+                freeTiles += 1
+            return freeTiles, freeTileOptions
 
         def countFlagsAround(board, i, j):
             flags = 0
@@ -153,7 +137,7 @@ class oracleAgent:
             return flags
 
         def isBoundary(i, j):
-            if self.onScreen[(i, j)] != None:
+            if self.minesweeperBoard[(i, j)] != None:
                 return False
             oU = False
             oD = False
@@ -168,78 +152,76 @@ class oracleAgent:
             if j == self.size-1:
                 oR = True
             isBoundary = False
-            if not oU and self.onScreen[(i-1, j)] != None:
+            if not oU and self.minesweeperBoard[(i-1, j)] != None:
                 isBoundary = True
-            if not oL and self.onScreen[(i, j-1)] != None:
+            if not oL and self.minesweeperBoard[(i, j-1)] != None:
                 isBoundary = True
-            if not oD and self.onScreen[(i+1, j)] != None:
+            if not oD and self.minesweeperBoard[(i+1, j)] != None:
                 isBoundary = True
-            if not oR and self.onScreen[(i, j+1)] != None:
+            if not oR and self.minesweeperBoard[(i, j+1)] != None:
                 isBoundary = True
-            if not oU and not oL and self.onScreen[(i-1, j-1)] != None:
+            if not oU and not oL and self.minesweeperBoard[(i-1, j-1)] != None:
                 isBoundary = True
-            if not oR and not oU and self.onScreen[(i-1, j+1)] != None:
+            if not oR and not oU and self.minesweeperBoard[(i-1, j+1)] != None:
                 isBoundary = True
-            if not oD and not oL and self.onScreen[(i+1, j-1)] != None:
+            if not oD and not oL and self.minesweeperBoard[(i+1, j-1)] != None:
                 isBoundary = True
-            if not oD and not oR and self.onScreen[(i+1, j+1)] != None:
+            if not oD and not oR and self.minesweeperBoard[(i+1, j+1)] != None:
                 isBoundary = True
             return isBoundary
 
-        def tankRecurse(borderTiles, k):
+        def recurseThroughAreaSolutionOptions(boardBorderTiles, k):
             flagCount = 0
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.knownMine[(i,j)]:
+                    if self.temporaryMinePlacement[(i,j)]:
                         flagCount += 1
-                    num = self.tank_board[(i, j)] if self.tank_board[(i, j)] != None else -10
+                    num = self.temporaryBoard[(i, j)] if self.temporaryBoard[(i, j)] != None else -1000
                     if num < 0:
                         continue
-                    surround = 0
+                    numSurroundingTiles = 0
+                    # corner tile
                     if (i == 0 and j == 0) or (i == self.size-1 and j == self.size-1):
-                        surround = 3
+                        numSurroundingTiles = 3
+                    # edge tile
                     elif (i == 0 or j == 0 or i == self.size-1 or j == self.size-1):
-                        surround = 5
+                        numSurroundingTiles = 5
+                    # center tile
                     else:
-                        surround = 8
-                    numFlags = countFlagsAround(self.knownMine, i, j)
-                    numFree = countFlagsAround(self.knownEmpty, i, j)
+                        numSurroundingTiles = 8
+                    numFlags = countFlagsAround(self.temporaryMinePlacement, i, j)
+                    numFree = countFlagsAround(self.uncoveredTiles, i, j)
                     if numFlags > num:
                         return
 
-                    if surround - numFree < num:
+                    if numSurroundingTiles - numFree < num:
                         return
 
-            if flagCount > self.TOT_MINES:
+            if flagCount > self.totalNumMines:
                 return
-            if k == len(borderTiles):
-                if not self.borderOptimization and flagCount < self.TOT_MINES:
-                # if flagCount < self.TOT_MINES:
+            if k == len(boardBorderTiles):
+                if not self.borderOptimization and flagCount < self.totalNumMines:
                     return
                 solution = []
-                for i in range(len(borderTiles)):
-                    s = borderTiles[i]
-                    si, sj = s
-                    solution.append(self.knownMine[(si, sj)])
-                self.tank_solutions.append(solution)
+                for i in range(len(boardBorderTiles)):
+                    solution.append(self.temporaryMinePlacement[boardBorderTiles[i]])
+                self.solutionOptions.append(solution)
                 return
-            q = borderTiles[k]
-            qi, qj = q
-            self.knownMine[(qi, qj)] = True
-            tankRecurse(borderTiles, k+1)
-            self.knownMine[(qi, qj)] = False
+            self.temporaryMinePlacement[boardBorderTiles[k]] = True
+            recurseThroughAreaSolutionOptions(boardBorderTiles, k+1)
+            self.temporaryMinePlacement[boardBorderTiles[k]] = False
 
-            self.knownEmpty[(qi, qj)] = True
-            tankRecurse(borderTiles, k+1)
-            self.knownEmpty[(qi, qj)] = False
+            self.uncoveredTiles[boardBorderTiles[k]] = True
+            recurseThroughAreaSolutionOptions(boardBorderTiles, k+1)
+            self.uncoveredTiles[boardBorderTiles[k]] = False
 
-        def tankSegregate(borderTiles):
+        def segregateBoardAreas(boardBorderTiles):
             allRegions = []
             covered = []
             while True:
                 queue = []
                 finishedRegion = []
-                for firstT in borderTiles:
+                for firstT in boardBorderTiles:
                     if firstT not in covered:
                         queue.append(firstT)
                         break
@@ -252,7 +234,7 @@ class oracleAgent:
                     covered.append(curTile)
 
                     # determine bordering tiles
-                    for tile in borderTiles:
+                    for tile in boardBorderTiles:
                         ti, tj = tile
                         isConnected = False
                         if tile in finishedRegion:
@@ -263,7 +245,7 @@ class oracleAgent:
                             for i in range(self.size):
                                 isTrue = False
                                 for j in range(self.size):
-                                    if self.onScreen[(i,j)] > 0 and self.onScreen[(i,j)] != None:
+                                    if self.minesweeperBoard[(i,j)] > 0 and self.minesweeperBoard[(i,j)] != None:
                                         if abs(ci - i) <= 1 and abs(cj - j) <= 1 and abs(ti - i) <= 1 and abs(tj - j) <= 1:
                                             isConnected = True
                                             isTrue = True
@@ -276,190 +258,175 @@ class oracleAgent:
                         elif tile not in queue:
                             queue.append(tile)
                 allRegions.append(finishedRegion)
-                # print allRegions
             return allRegions
 
 
         def tankSolver():
-            borderTiles = []
+            boardBorderTiles = []
             allEmptyTiles = []
             self.borderOptimization = False
-            allFlags = 0
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.onScreen[(i,j)] == None and not self.flags[(i, j)]:
+                    if self.minesweeperBoard[(i,j)] == None and not self.flagLocations[(i, j)]:
                         allEmptyTiles.append((i,j))
-                    if self.flags[(i, j)]:
-                        allFlags += 1
-            if allFlags > self.TOT_MINES:
-                return
             for i in range(self.size):
                 for j in range(self.size):
-                    if isBoundary(i, j) and not self.flags[(i, j)]:
-                        borderTiles.append((i,j))
-            # num squares in knowable range
-            numOutSquares = len(allEmptyTiles) - len(borderTiles)
-            if numOutSquares > self.BF_LIMIT:
+                    if isBoundary(i, j) and not self.flagLocations[(i, j)]:
+                        boardBorderTiles.append((i,j))
+            # number of tiles in the knowable range
+            numOutTiles = len(allEmptyTiles) - len(boardBorderTiles)
+            if numOutTiles > self.brute_force_limit:
                 self.borderOptimization = True
             else:
-                borderTiles = allEmptyTiles
-            if len(borderTiles) == 0:
-                # print "borderTiles error: ", borderTiles
+                boardBorderTiles = allEmptyTiles
+            if len(boardBorderTiles) == 0:
                 return
 
-            segregated = None
+            segregatedAreas = None
             if not self.borderOptimization:
-                segregated = []
-                segregated.append(borderTiles)
+                segregatedAreas = []
+                segregatedAreas.append(boardBorderTiles)
             else:
-                # print "tank segregate"
-                segregated = tankSegregate(borderTiles)
-                # print "finished"
+                segregatedAreas = segregateBoardAreas(boardBorderTiles)
 
             totalMultCases = 1
             success = False
-            prob_best = 0
-            prob_besttile = -1
-            prob_best_s = -1
-            for s in range(len(segregated)):
-                self.tank_solutions = []
-                self.tank_board = collections.Counter()
-                self.knownMine = collections.Counter()
-                for o in self.onScreen:
-                    self.tank_board[o] = self.onScreen[o]
-                for f in self.flags:
-                    self.knownMine[f] = self.flags[f]
-                self.knownEmpty = collections.Counter()
+            bestProbability = 0
+            bestTileProbability = -1
+            bestProbabilityIndex = -1
+            for s in range(len(segregatedAreas)):
+                self.solutionOptions = []
+                self.temporaryBoard = copyBoard(self.minesweeperBoard)
+                self.temporaryMinePlacement = copyBoard(self.flagLocations)
+                self.uncoveredTiles = collections.Counter()
                 for i in range(self.size):
                     for j in range(self.size):
-                        if self.tank_board[(i, j)] != None:
-                            self.knownEmpty[(i, j)] = True
+                        if self.temporaryBoard[(i, j)] != None and self.temporaryBoard[(i, j)] >= 0:
+                            self.uncoveredTiles[(i, j)] = True
                         else:
-                            self.knownEmpty[(i, j)] = False
-                tankRecurse(segregated[s], 0)
+                            self.uncoveredTiles[(i, j)] = False
+                recurseThroughAreaSolutionOptions(segregatedAreas[s], 0)
                 solution = False
-                if len(self.tank_solutions) == 0:
-                    if solved():
-                        # print "SOLVED"
-                        self.tank_solutions.append(self.flags)
-                        solution = True
-                    else:
-                        # print "tank_solutions error"
-                        return
-                if not solution:
-                    for i in range(len(segregated[s])):
-                        allMine = True
-                        allEmpty = True
-                        for sln in self.tank_solutions:
-                            if not sln[i]:
-                                allMine = False
-                            if sln[i]:
-                                allEmpty = False
-                        q = segregated[s][i]
-                        qi, qj = q
-                        if allMine:
-                            # print "all Mine"
-                            flagOn(qi, qj)
-                        if allEmpty:
-                            success = True
-                            clickOn(qi, qj)
-                totalMultCases *= len(self.tank_solutions)
+                if len(self.solutionOptions) == 0:
+                    return
+                for i in range(len(segregatedAreas[s])):
+                    allMine = True
+                    allEmpty = True
+                    for sln in self.solutionOptions:
+                        if not sln[i]:
+                            allMine = False
+                        if sln[i]:
+                            allEmpty = False
+                    ti, tj = segregatedAreas[s][i]
+                    if allMine:
+                        flagTile(ti, tj)
+                    if allEmpty:
+                        success = True
+                        clickTile(ti, tj)
+                totalMultCases *= len(self.solutionOptions)
 
                 if success:
                     continue
-                maxEmpty = -10000
+                maxEmpty = -1000000
                 iEmpty = -1
-                for i in range(len(segregated[s])):
+                for i in range(len(segregatedAreas[s])):
                     nEmpty = 0
-                    for sln in self.tank_solutions:
+                    for sln in self.solutionOptions:
                         if not sln[i]:
                             nEmpty += 1
                     if nEmpty > maxEmpty:
                         maxEmpty = nEmpty
                         iEmpty = i
-                probability = float(maxEmpty)/len(self.tank_solutions)
+                probability = float(maxEmpty)/len(self.solutionOptions)
 
-                if probability > prob_best:
-                    prob_best = probability
-                    prob_besttile = iEmpty
-                    prob_best_s = s
+                if probability > bestProbability:
+                    bestProbability = probability
+                    bestTileProbability = iEmpty
+                    bestProbabilityIndex = s
 
-            if self.BF_LIMIT == 8 and numOutSquares > 8 and numOutSquares <= 13:
-                print "Extending bruteforce horizon"
-                self.BF_LIMIT = 13
+            if self.brute_force_limit == self.NORMAL_BRUTE_FORCE_CONSTANT and numOutTiles > self.NORMAL_BRUTE_FORCE_CONSTANT and numOutTiles <= self.MAX_BRUTE_FORCE_CONSTANT:
+                if self.verbose:
+                    print "Extending bruteforce horizon"
+                self.brute_force_limit = self.MAX_BRUTE_FORCE_CONSTANT
                 tankSolver()
-                self.BF_LIMIT = 8
+                self.brute_force_limit = self.NORMAL_BRUTE_FORCE_CONSTANT
                 return
 
             if success:
-                print "TANK Solver successfully invoked at step %d (%d cases) %s\n" % (self.TOT_MINES - self.minesRemaining, totalMultCases, self.borderOptimization)
+                if self.verbose:
+                    print "TANK Solver successfully invoked at step %d (%d cases) %s\n" % (self.totalNumMines - self.minesRemaining, totalMultCases, self.borderOptimization)
                 return
 
-            print "TANK Solver guessing with probability %1.2f at step %d (%d cases) %s\n" % (prob_best, self.TOT_MINES - self.minesRemaining, totalMultCases, self.borderOptimization)
-            q = segregated[prob_best_s][prob_besttile]
-            qi, qj = q
-            clickOn(qi, qj)
+            if self.verbose:
+                print "TANK Solver guessing with probability %1.2f at step %d (%d cases) %s" % (bestProbability, self.totalNumMines - self.minesRemaining, totalMultCases, self.borderOptimization)
+            i, j = segregatedAreas[bestProbabilityIndex][bestTileProbability]
+            click = clickTile(i, j)
+            if self.verbose:
+                if click == -1000:
+                    print "You guessed wrong."
+                else:
+                    print "Got lucky this time! ", click
+                print
 
         def attemptFlagMine():
             # print "attempt Flag Mine"
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.onScreen[(i,j)] >= 1 and self.onScreen[(i, j)] != None:
-                        curNum = self.onScreen[(i,j)]
-                        if curNum == countFreeSquaresAround(i, j):
+                    if self.minesweeperBoard[(i,j)] >= 1 and self.minesweeperBoard[(i, j)] != None:
+                        curNum = self.minesweeperBoard[(i,j)]
+                        if curNum == countFreeTilesAround(i, j):
                             for ii in range(size):
                                 for jj in range(size):
                                     if abs(ii - i) <= 1 and abs(jj - j) <= 1:
-                                        if self.onScreen[(ii, jj)] == None and not self.flags[(ii, jj)]:
-                                            flagOn(ii, jj)
+                                        if self.minesweeperBoard[(ii, jj)] == None and not self.flagLocations[(ii, jj)]:
+                                            flagTile(ii, jj)
 
         def attemptMove():
             success = False
             # print
             # print "attempt Move: "
             # printBoard()
-            # self.board.printBoard()
+            # self.actualBoard.printBoard()
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.onScreen[(i, j)] >= 0:
-                        curNum = self.onScreen[(i, j)]
-                        mines = countFlagsAround(self.flags, i, j)
-                        freeSquares, freeSquareOptions = countFreeSquaresAround(i, j)
-                        # print "squares ", (i, j), freeSquares, curNum, mines, curNum == mines and freeSquares > 0, freeSquareOptions
-                        if curNum == mines and freeSquares > 0:
+                    if self.minesweeperBoard[(i, j)] >= 0:
+                        curNum = self.minesweeperBoard[(i, j)]
+                        mines = countFlagsAround(self.flagLocations, i, j)
+                        freeTiles, freeTileOptions = countFreeTilesAround(i, j)
+                        if curNum == mines and freeTiles > 0:
                             success = True
-                            # if freeSquares - mines > 1:
-                            #     self.onScreen[(i, j)] = 0
-                            #     continue
-                            for square in freeSquareOptions:
-                                si, sj = square
-                                clickOn(si, sj)
+                            for tile in freeTileOptions:
+                                si, sj = tile
+                                clickTile(si, sj)
+                        if freeTiles == curNum - mines and freeTiles > 0:
+                            success = True
+                            for tile in freeTileOptions:
+                                si, sj = tile
+                                flagTile(si, sj)
             if success:
                 return
             else:
                 tankSolver()
 
 
-        self.board = board
+        self.actualBoard = board
         self.size = size
         self.minesRemaining = mines
-        self.TOT_MINES = mines
+        self.totalNumMines = mines
         for i in range(size):
             for j in range(size):
-                self.flags[(i, j)] = False
-                self.onScreen[(i, j)] = None
-        currentNode = firstSquare()
-        for c in range(100000):
-            # print "flags ", self.flags
-            # print "board ", self.onScreen
+                self.flagLocations[(i, j)] = False
+                self.minesweeperBoard[(i, j)] = None
+        currentNode = firstTile()
+        for attempt in range(self.MAX_ATTEMPTS_BEFORE_FAILURE):
             if not stillAlive():
                 self.lose = True
                 break
-            if solved():
+            if isSolved():
                 self.solved = True
                 break
             attemptFlagMine()
-            if solved():
+            if isSolved():
                 self.solved = True
                 break
             attemptMove()
