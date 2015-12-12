@@ -1,4 +1,4 @@
-# minesweeper
+# Minesweeper AI Agent: A CS221 Project
 
 To run, use python shell command on minesweeperAgent.py:
 
