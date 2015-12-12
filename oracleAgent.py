@@ -1,7 +1,6 @@
-__author__ = 'Alex'
+__author__ = 'Bai Li'
 
-import collections, util, copy, minesweeper, random, time
-from constraint import *
+import collections, copy, minesweeper, random, time
 class oracleAgent:
     def __init__(self):
         self.NORMAL_BRUTE_FORCE_CONSTANT = 8

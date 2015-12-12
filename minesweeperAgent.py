@@ -16,9 +16,12 @@ class minesweeperAgent:
         self.size = 0
         # mines not yet examined
         self.unprobed = []
+        # debugging tool
+        self.verbose = False
 
     # Find the solution to a size*size Minesweeper board with 'mines' mines.
-    def solve(self, size, mines, board):
+    def solve(self, size, mines, board, verbose=False):
+        self.verbose = verbose
         # Return true if a variable is within the bounds of the board
         def inBounds(node):
             if node[0] < size and node[1] <size and node[0] >= 0 and node[1] >=0:
@@ -63,7 +66,6 @@ class minesweeperAgent:
         # find them and add them to the solution.
         def checkForTrivialConstraints():
             for constraint in constraints:
-<<<<<<< HEAD
                 if len(constraint[0]) == constraint[1]:
                     for mine in constraint[0]:
                         if mine not in self.mineLocs:
@@ -77,31 +79,19 @@ class minesweeperAgent:
                         toProbe.append(node)
                     constraints.remove(constraint)
 
-=======
-                    if len(constraint[0]) == constraint[1]:
-                        for mine in constraint[0]:
-                            if mine not in self.mineLocs:
-                                addMine(mine)
-                        if self.minesRemaining <= 0:
-                            self.solved = True
-
-                    if constraint[1] == 0 and len(constraint[0]) > 1:
-                        for node in constraint[0]:
-                            constraints.append(([node], 0))
-                            toProbe.append(node)
-                        constraints.remove(constraint)
         # Return true if the game has been correctly solved, false otherwise.
->>>>>>> b84970e6fa7e7a6eb01dbbcad77c18b2a4a98d24
         def checkGameOutcome():
             if self.solved is True:
-                print 'You win!'
+                if self.verbose:
+                    print 'You win!'
                 solution = minesweeper.Board(self.size, [self.mineLocs[i] for i in range(len(self.mineLocs))])
-                print 'AI Solution:\n'
-                solution.printBoard()
+                if self.verbose:
+                    print 'AI Solution:\n'
+                    solution.printBoard()
                 if set(solution._bomblocations) == set(board._bomblocations):
                     return True
                 return False
-            if self.lose is True:
+            if self.lose is True and self.verbose:
                 print 'You lose'
             return False
 
@@ -201,9 +191,7 @@ class minesweeperAgent:
 
                         if mineProbs[lowestProbMineVar] < self.minesRemaining/float(len(self.unprobed)):
                             toProbe.append(lowestProbMineVar)
-<<<<<<< HEAD
-                        
-=======
+
         # Take a node value and check if it is a mine. If it isn't add the correct constraints to the csp.
         def evaluateNodeValue(nodeValue):
             if nodeValue == 'x':
@@ -236,7 +224,6 @@ class minesweeperAgent:
                     if self.solved == True:
                         return
 
->>>>>>> b84970e6fa7e7a6eb01dbbcad77c18b2a4a98d24
         random.seed()
         for i in range(size):
             for j in range(size):

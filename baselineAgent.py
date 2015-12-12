@@ -1,7 +1,6 @@
-__author__ = 'Alex'
+__author__ = 'Alex Engel and Fiona Meyer-Teruel'
 
-import collections, util, copy, minesweeper, random, time
-from constraint import *
+import collections, copy, minesweeper, random, time
 class baselineAgent:
     def __init__(self):
         self.minesRemaining = 0
